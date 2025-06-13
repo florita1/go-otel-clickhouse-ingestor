@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"github.com/google/uuid"
 	"encoding/json"
+	"github.com/florita1/ingestion-service/internal/metrics"
 )
 
 // Event represents a synthetic user action.
@@ -19,6 +20,8 @@ type Event struct {
 var actions = [] string {"login", "click", "purchase", "logout"}
 
 func main() {
+    metrics.Init("8080")
+
     rand.Seed(time.Now().UnixNano())
 
     ticker := time.NewTicker(1 * time.Second)
@@ -35,6 +38,7 @@ func main() {
         	continue
         }
         log.Println(string(jsonEvent))
+        metrics.IngestedEventCount.Inc()
     }
 }
 

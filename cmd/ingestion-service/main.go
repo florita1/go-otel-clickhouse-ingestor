@@ -1,12 +1,15 @@
 package main
 
 import (
+    "context"
 	"log"
 	"time"
 	"math/rand"
 	"github.com/google/uuid"
 	"encoding/json"
 	"github.com/florita1/ingestion-service/internal/metrics"
+	"github.com/florita1/ingestion-service/internal/tracing"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // Event represents a synthetic user action.
@@ -20,6 +23,10 @@ type Event struct {
 var actions = [] string {"login", "click", "purchase", "logout"}
 
 func main() {
+    ctx := context.Background()
+    tracing.Init("ingestion-service")
+    defer tracing.Shutdown(ctx)
+
     metrics.Init("8080")
 
     rand.Seed(time.Now().UnixNano())
@@ -31,7 +38,10 @@ func main() {
 
     for range ticker.C {
         log.Println("generate event")
+        var span trace.Span
+        ctx, span = tracing.Tracer.Start(ctx, "generateEvent")
         event := generateEvent()
+        span.End()
         jsonEvent, err := json.MarshalIndent(event, "", "  ")
         if err != nil {
         	log.Printf("Failed to serialize event: %v", err)

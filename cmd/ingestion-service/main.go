@@ -10,15 +10,10 @@ import (
 	"github.com/florita1/ingestion-service/internal/metrics"
 	"github.com/florita1/ingestion-service/internal/tracing"
 	"go.opentelemetry.io/otel/trace"
+	"github.com/florita1/ingestion-service/internal/model"
+	"github.com/florita1/ingestion-service/internal/ingestion"
 )
 
-// Event represents a synthetic user action.
-type Event struct {
-	Timestamp time.Time `json:"timestamp"`
-	UserID    string    `json:"user_id"`
-	Action    string    `json:"action"`
-	Payload   string    `json:"payload"`
-}
 
 var actions = [] string {"login", "click", "purchase", "logout"}
 
@@ -41,6 +36,12 @@ func main() {
         var span trace.Span
         ctx, span = tracing.Tracer.Start(ctx, "generateEvent")
         event := generateEvent()
+
+        err := ingestion.InsertEvent(ctx, event)
+        if err != nil {
+        	log.Printf("Failed to insert event: %v", err)
+        }
+
         span.End()
         jsonEvent, err := json.MarshalIndent(event, "", "  ")
         if err != nil {
@@ -52,8 +53,8 @@ func main() {
     }
 }
 
-func generateEvent() Event {
-    return Event {
+func generateEvent() model.Event {
+    return model.Event {
         Timestamp:  time.Now(),
         UserID:     getUserId(),
         Action:     actions[rand.Intn(len(actions))],

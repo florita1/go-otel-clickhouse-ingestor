@@ -7,17 +7,24 @@ import (
 	"fmt"
 	"net/http"
 	"log"
+	"os"
+	"net/url"
 
 	"go.opentelemetry.io/otel"
 	"github.com/florita1/ingestion-service/internal/model"
 )
 
-const clickhouseEndpoint = "http://localhost:8123/?query=INSERT%20INTO%20events%20FORMAT%20JSONEachRow"
-
 func InsertEvent(ctx context.Context, event model.Event) error {
     tr := otel.Tracer("ingestion-service")
     ctx, span := tr.Start(ctx, "insertToClickHouse")
     defer span.End()
+
+    clickhouseHost := os.Getenv("CLICKHOUSE_HOST")
+	if clickhouseHost == "" {
+		clickhouseHost = "localhost"
+	}
+    query := url.QueryEscape("INSERT INTO events FORMAT JSONEachRow")
+    clickhouseEndpoint := fmt.Sprintf("http://%s:8123/?query=%s", clickhouseHost, query)
 
     event.Timestamp = event.Timestamp.UTC() // normalize if needed
     formatted := struct {

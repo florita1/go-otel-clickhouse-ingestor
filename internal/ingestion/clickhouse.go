@@ -48,7 +48,13 @@ func InsertEvent(ctx context.Context, event model.Event) error {
 		return fmt.Errorf("request creation error: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.SetBasicAuth("default", "clickhouse")
+
+    username := os.Getenv("CLICKHOUSE_USER")
+    password := os.Getenv("CLICKHOUSE_PASSWORD")
+
+    if username != "" && password != "" {
+    	req.SetBasicAuth(username, password)
+    }
 
 	client := &http.Client{}
 	resp, err := client.Do(req)

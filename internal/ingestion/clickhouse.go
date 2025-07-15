@@ -23,7 +23,7 @@ func InsertEvent(ctx context.Context, event model.Event) error {
 	if clickhouseHost == "" {
 		clickhouseHost = "localhost"
 	}
-    query := url.QueryEscape("INSERT INTO events FORMAT JSONEachRow")
+    query := url.QueryEscape("INSERT INTO events_db.events FORMAT JSONEachRow")
     clickhouseEndpoint := fmt.Sprintf("http://%s:8123/?query=%s", clickhouseHost, query)
 
     event.Timestamp = event.Timestamp.UTC() // normalize if needed

@@ -105,7 +105,7 @@ func runIngestion() {
             metrics.IngestedEventCount.Inc()
         case <- timeout:
             log.Println("Ingestion complete.")
-        	return
+        	select {} // keep metrics server alive for prometheus scraping
         }
     }
 }

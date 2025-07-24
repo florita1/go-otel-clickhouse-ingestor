@@ -3,6 +3,7 @@ package tracing
 import (
 	"context"
 	"log"
+	"os"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -18,10 +19,17 @@ var traceProvider *sdktrace.TracerProvider
 func Init(serviceName string) {
     ctx := context.Background()
 
+    // Use env variable if set, else default to localhost:4318
+    endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+    if endpoint == "" {
+    	endpoint = "localhost:4318"
+    }
+
     exporter, err := otlptracehttp.New(ctx,
-        otlptracehttp.WithEndpoint("localhost:4318"),
-        otlptracehttp.WithInsecure(),
+    	otlptracehttp.WithEndpoint(endpoint),
+    	otlptracehttp.WithInsecure(),
     )
+
     if err != nil {
     	log.Fatalf("Failed to create OTLP exporter: %v", err)
     }

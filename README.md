@@ -116,6 +116,26 @@ go run main.go --clickhouse-url=http://localhost:8123
 
 ---
 
+## Docker Image
+
+This repository builds a multi-arch Docker image for the ingestion service on every push to `main`.
+
+Published
+to [GitHub Container Registry](https://github.com/users/florita1/packages/container/package/ingestion-service):
+
+- `ghcr.io/florita1/ingestion-service:latest`
+- `ghcr.io/florita1/ingestion-service:v0.2.4`
+
+Build uses:
+
+```bash
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/florita1/ingestion-service:latest \
+  -t ghcr.io/florita1/ingestion-service:v0.2.4 \
+  --push .
+  ```
+
 ## 👤 Author
 
 [Florita Nichols](https://www.linkedin.com/in/floritanichols)

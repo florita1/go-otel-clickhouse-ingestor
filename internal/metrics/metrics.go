@@ -15,8 +15,35 @@ var IngestedEventCount = prometheus.NewCounter(
 	},
 )
 
+var InsertLatency = prometheus.NewHistogram(
+	prometheus.HistogramOpts{
+		Name:    "ingestion_clickhouse_insert_latency_seconds",
+		Help:    "Latency of inserts to ClickHouse in seconds",
+		Buckets: prometheus.DefBuckets,
+	},
+)
+
+var InsertErrors = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "ingestion_clickhouse_insert_errors_total",
+		Help: "Total number of insert errors to ClickHouse",
+	},
+)
+
+var RowsInserted = prometheus.NewCounter(
+	prometheus.CounterOpts{
+		Name: "ingestion_clickhouse_rows_inserted_total",
+		Help: "Total number of rows inserted into ClickHouse",
+	},
+)
+
 func Init(port string) {
-	prometheus.MustRegister(IngestedEventCount)
+	prometheus.MustRegister(
+    		IngestedEventCount,
+    		InsertLatency,
+    		InsertErrors,
+    		RowsInserted,
+    	)
 
 	http.Handle("/metrics", promhttp.Handler())
 

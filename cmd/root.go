@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"github.com/florita1/ingestion-service/internal/ingestion"
 	"github.com/florita1/ingestion-service/internal/generator"
+	"github.com/florita1/ingestion-service/internal/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -85,26 +86,26 @@ func runIngestion() {
     for {
     	select {
     	case <- ticker.C:
-            log.Println("generate event")
+            logging.WithTrace(ctx, "Generate event")
             var span trace.Span
             ctx, span = tracing.Tracer.Start(ctx, "generateEvent")
             event := generator.GenerateEvent()
 
             err := ingestion.InsertEvent(ctx, event)
             if err != nil {
-        	    log.Printf("Failed to insert event: %v", err)
+                logging.WithTrace(ctx, "Failed to insert event: %v", err)
             }
 
             span.End()
             jsonEvent, err := json.MarshalIndent(event, "", "  ")
             if err != nil {
-        	    log.Printf("Failed to serialize event: %v", err)
+                logging.WithTrace(ctx, "Failed to serialize event: %v", err)
         	    continue
             }
-            log.Println(string(jsonEvent))
+            logging.WithTrace(ctx, string(jsonEvent))
             metrics.IngestedEventCount.Inc()
         case <- timeout:
-            log.Println("Ingestion complete.")
+            logging.WithTrace(ctx, "Ingestion complete")
         	select {} // keep metrics server alive for prometheus scraping
         }
     }

@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"log"
 	"os"
 	"net/url"
+	"time"
 
 	"go.opentelemetry.io/otel"
+	"github.com/florita1/ingestion-service/internal/metrics"
 	"github.com/florita1/ingestion-service/internal/model"
+	"github.com/florita1/ingestion-service/internal/logging"
 )
 
 func InsertEvent(ctx context.Context, event model.Event) error {
@@ -45,12 +47,14 @@ func InsertEvent(ctx context.Context, event model.Event) error {
     body, err := json.Marshal(formatted)
     if err != nil {
         metrics.InsertErrors.Inc()
+        logging.WithTrace(ctx, "marshal error: %w", err)
         return fmt.Errorf("marshal error: %w", err)
     }
 
     req, err := http.NewRequest("POST", clickhouseEndpoint, bytes.NewBuffer(body))
     if err != nil {
         metrics.InsertErrors.Inc()
+        logging.WithTrace(ctx, "request creation error: %w", err)
         return fmt.Errorf("request creation error: %w", err)
     }
 
@@ -69,17 +73,20 @@ func InsertEvent(ctx context.Context, event model.Event) error {
 
     if err != nil {
         metrics.InsertErrors.Inc()
+        logging.WithTrace(ctx, "http post error: %w", err)
         return fmt.Errorf("http post error: %w", err)
     }
     defer resp.Body.Close()
 
     if resp.StatusCode != http.StatusOK {
         metrics.InsertErrors.Inc()
+        logging.WithTrace(ctx, "clickhouse returned status error: %s", resp.Status)
         return fmt.Errorf("clickhouse returned status: %s", resp.Status)
     }
 
     // Only increment on successful insert
     metrics.RowsInserted.Inc()
+    logging.WithTrace(ctx, "Inserted event")
 
     return nil
 }

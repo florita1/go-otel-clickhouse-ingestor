@@ -102,7 +102,8 @@ func runIngestion() {
                 logging.WithTrace(ctx, "Failed to serialize event: %v", err)
         	    continue
             }
-            logging.WithTrace(ctx, string(jsonEvent))
+            logging.WithTrace(ctx, "Event generated with user_id = %s action = %s", event.UserID, event.Action)
+
             metrics.IngestedEventCount.Inc()
         case <- timeout:
             logging.WithTrace(ctx, "Ingestion complete")

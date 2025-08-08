@@ -8,7 +8,6 @@ import (
 	"log"
 	"time"
 	"math/rand"
-	"encoding/json"
 	"github.com/florita1/ingestion-service/internal/metrics"
 	"github.com/florita1/ingestion-service/internal/tracing"
 	"go.opentelemetry.io/otel/trace"
@@ -97,11 +96,6 @@ func runIngestion() {
             }
 
             span.End()
-            jsonEvent, err := json.MarshalIndent(event, "", "  ")
-            if err != nil {
-                logging.WithTrace(ctx, "Failed to serialize event: %v", err)
-        	    continue
-            }
             logging.WithTrace(ctx, "Event generated with user_id = %s action = %s", event.UserID, event.Action)
 
             metrics.IngestedEventCount.Inc()

@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 	"math/rand"
+	"strings"
 	"github.com/florita1/ingestion-service/internal/metrics"
 	"github.com/florita1/ingestion-service/internal/tracing"
 	"go.opentelemetry.io/otel/trace"
@@ -18,16 +19,28 @@ import (
 )
 
 var (
-	clickhouseURL string
+	clickhouseHost string
 	eventRate     int
 	durationSec   int
+    mode       string // synthetic | cdc
+    brokersCSV string
+    topic      string
+    groupID    string
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "ingestion-service",
 	Short: "Generate and stream synthetic events to ClickHouse",
 	Run: func(cmd *cobra.Command, args []string) {
-		runIngestion()
+		switch strings.ToLower(mode) {
+		case "", "synthetic":
+			runIngestion() // existing synthetic path
+		case "cdc":
+			runCDC()
+		default:
+			fmt.Printf("unknown --mode=%s (expected synthetic|cdc)\n", mode)
+			os.Exit(1)
+		}
 	},
 }
 
@@ -40,9 +53,15 @@ func Execute() {
 
 func init() {
 	// Bind flags with fallback to environment variables
-	rootCmd.Flags().StringVar(&clickhouseURL, "clickhouse-url", getEnv("CLICKHOUSE_URL", "http://localhost:8123"), "ClickHouse HTTP URL")
+	rootCmd.Flags().StringVar(&clickhouseHost, "clickhouse-host", getEnv("CLICKHOUSE_HOST", "localhost"), "ClickHouse Host")
 	rootCmd.Flags().IntVar(&eventRate, "rate", getEnvAsInt("EVENT_RATE", 5), "Events per second")
 	rootCmd.Flags().IntVar(&durationSec, "duration", getEnvAsInt("INGESTION_DURATION", 60), "How long to run ingestion (in seconds)")
+
+    rootCmd.Flags().StringVar(&mode, "mode", getEnv("MODE", "synthetic"), "synthetic|cdc")
+    rootCmd.Flags().StringVar(&brokersCSV, "brokers", getEnv("REDPANDA_BROKERS", "redpanda.redpanda.svc.cluster.local:9093"), "comma-separated brokers")
+    rootCmd.Flags().StringVar(&topic, "topic", getEnv("TOPIC", "dbserver1.app.users"), "Kafka topic")
+    rootCmd.Flags().StringVar(&groupID, "group", getEnv("GROUP_ID", "wal-cdc-ingestor"), "Kafka consumer group")
+
 }
 
 func getEnv(key, fallback string) string {
@@ -65,7 +84,7 @@ func getEnvAsInt(key string, fallback int) int {
 }
 
 func runIngestion() {
-	fmt.Printf("Starting ingestion\nClickHouse URL: %s\nRate: %d/sec\nDuration: %ds\n\n", clickhouseURL, eventRate, durationSec)
+	fmt.Printf("Starting ingestion\nClickHouse Host: %s\nRate: %d/sec\nDuration: %ds\n\n", clickhouseHost, eventRate, durationSec)
 
     ctx := context.Background()
     tracing.Init("ingestion-service")
@@ -105,3 +124,30 @@ func runIngestion() {
         }
     }
 }
+
+func runCDC() {
+  fmt.Printf("Starting CDC consumer\nBrokers: %s\nTopic: %s\nGroup: %s\n\n", brokersCSV, topic, groupID)
+
+  ctx := context.Background()
+  tracing.Init("ingestion-service")
+  defer tracing.Shutdown(ctx)
+  metrics.Init("8080")
+
+  cfg := ingestion.CDCConfig{
+    Brokers: splitCSV(brokersCSV),
+    Topic:   topic,
+    GroupID: groupID,
+  }
+  if err := ingestion.RunCDC(ctx, cfg); err != nil {
+    log.Fatalf("cdc error: %v", err)
+  }
+}
+
+func splitCSV(s string) []string {
+  var out []string
+  for _, p := range strings.Split(s, ",") {
+    if q := strings.TrimSpace(p); q != "" { out = append(out, q) }
+  }
+  return out
+}
+

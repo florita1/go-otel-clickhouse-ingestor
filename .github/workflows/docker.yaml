@@ -37,5 +37,5 @@ jobs:
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             -t ghcr.io/florita1/ingestion-service:latest \
-            -t ghcr.io/florita1/ingestion-service:v0.2.5 \
+            -t ghcr.io/florita1/ingestion-service:v0.2.6 \
             --push .

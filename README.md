@@ -1,13 +1,17 @@
-# 🧪 Go Ingestion Service
+# 🧪 Shared Go Ingestion Service
 
-A synthetic event generator written in Go that streams JSON-formatted events into ClickHouse. Fully instrumented with
-OpenTelemetry and Prometheus for observability.
+A single modular Go ingestion service powers both projects, operating in two configurable modes via Helm values:
+
+- **Synthetic mode** – Generates JSON-formatted mock user activity and streams it into ClickHouse.
+- **CDC mode** – Consumes Debezium-wrapped PostgreSQL WAL events from Redpanda and writes them to ClickHouse for low-latency OLAP analytics.
+
+The service is fully instrumented with OpenTelemetry for distributed tracing and the Prometheus Go SDK for metrics, enabling deep observability across ingestion, processing, and insert latency.
 
 ---
 
 ## 🚀 Features
 
-- Modular, Cobra-based CLI
+- Modular, Dual Mode (Synthetic and/or CDC), Cobra-based CLI
 - Streams events to ClickHouse (via HTTP interface)
 - Emits Prometheus metrics at `/metrics`
 - Traces event generation and ingestion using OpenTelemetry

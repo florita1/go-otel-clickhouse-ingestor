@@ -1,11 +1,11 @@
 package metrics
 
 import (
-    "log"
-    "net/http"
+	"log"
+	"net/http"
 
-    "github.com/prometheus/client_golang/prometheus"
-    "github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var IngestedEventCount = prometheus.NewCounter(
@@ -39,19 +39,19 @@ var RowsInserted = prometheus.NewCounter(
 
 func Init(port string) {
 	prometheus.MustRegister(
-    		IngestedEventCount,
-    		InsertLatency,
-    		InsertErrors,
-    		RowsInserted,
-    	)
+		IngestedEventCount,
+		InsertLatency,
+		InsertErrors,
+		RowsInserted,
+	)
 
 	http.Handle("/metrics", promhttp.Handler())
 
-	log.Printf("Prometheus metrics available at http://localhost:%s/metrics", port)
+	log.Printf("Prometheus metrics available at http://ingestion-service:%s/metrics", port)
 
 	go func() {
-		if err := http.ListenAndServe(":" + port, nil); err != nil {
+		if err := http.ListenAndServe(":"+port, nil); err != nil {
 			log.Fatalf("Failed to start metrics endpoint: %v", err)
 		}
-	} ()
+	}()
 }

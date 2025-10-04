@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"os"
 	"strings"
 	"time"
-	"os"
 
 	"github.com/segmentio/kafka-go"
 	"go.opentelemetry.io/otel"
@@ -16,28 +16,22 @@ import (
 	"github.com/florita1/ingestion-service/internal/model"
 )
 
-type CDCConfig struct {
-	Brokers []string
-	Topic   string
-	GroupID string
-}
-
 type staticResolver struct{ ip string }
 
 func (r staticResolver) LookupHost(ctx context.Context, host string) ([]string, error) {
-    return []string{r.ip}, nil
+	return []string{r.ip}, nil
 }
 
-func RunCDC(ctx context.Context, cfg CDCConfig) error {
+func RunCDC(ctx context.Context, cfg Config) error {
 	tr := otel.Tracer("ingestion-service")
 
-    var dialer *kafka.Dialer
-    if os.Getenv("KAFKA_FORCE_LOCAL") == "1" {
-        dialer = &kafka.Dialer{
-            Timeout:  10 * time.Second,
-            Resolver: staticResolver{ip: "127.0.0.1"},
-        }
-    }
+	var dialer *kafka.Dialer
+	if os.Getenv("KAFKA_FORCE_LOCAL") == "1" {
+		dialer = &kafka.Dialer{
+			Timeout:  10 * time.Second,
+			Resolver: staticResolver{ip: "127.0.0.1"},
+		}
+	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:  cfg.Brokers,
@@ -63,6 +57,7 @@ func RunCDC(ctx context.Context, cfg CDCConfig) error {
 		// New span per message
 		mCtx, span := tr.Start(ctx, "cdc.message")
 		span.SetAttributes()
+		logging.WithTrace(mCtx, "WAL event received")
 
 		var env model.DBZEnvelope
 		if !tryUnmarshalEnvelope(msg.Value, &env) {
@@ -76,8 +71,9 @@ func RunCDC(ctx context.Context, cfg CDCConfig) error {
 			span.End()
 			continue
 		}
+		logging.WithTrace(mCtx, "WAL envelope translated to row op=%d id=%d", row.Op, row.ID)
 
-		if err := InsertCDCUser(mCtx, *row); err != nil {
+		if err := InsertCDCUser(mCtx, cfg, *row); err != nil {
 			logging.WithTrace(mCtx, "[cdc] insert error: %v", err)
 			span.End()
 			continue
@@ -103,10 +99,14 @@ func tryUnmarshalEnvelope(b []byte, out *model.DBZEnvelope) bool {
 
 func translateEnvelopeToRow(ctx context.Context, env model.DBZEnvelope, key []byte) *model.CDCUserRow {
 	var lsn uint64
-	if env.Source.LSN != nil { lsn = *env.Source.LSN }
+	if env.Source.LSN != nil {
+		lsn = *env.Source.LSN
+	}
 
 	ts := time.Unix(0, 0).UTC()
-	if env.TsUS != nil { ts = time.UnixMicro(*env.TsUS).UTC() }
+	if env.TsUS != nil {
+		ts = time.UnixMicro(*env.TsUS).UTC()
+	}
 
 	row := model.CDCUserRow{LSN: lsn, Ts: ts}
 
@@ -144,9 +144,13 @@ func translateEnvelopeToRow(ctx context.Context, env model.DBZEnvelope, key []by
 
 func opToEnum(op string) uint8 {
 	switch strings.ToLower(op) {
-	case "c": return 1
-	case "u": return 2
-	case "d": return 3
-	default:  return 0
+	case "c":
+		return 1
+	case "u":
+		return 2
+	case "d":
+		return 3
+	default:
+		return 0
 	}
 }
